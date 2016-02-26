@@ -1,13 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Web;
-using System.Web.Mvc;
-using Octokit;
+using System;
 using System.Threading.Tasks;
+using System.Web.Mvc;
 using System.Web.Security;
+using Octokit;
+using OctokitDemo.Models;
 
-namespace Coderhub.Controllers
+namespace OctokitDemo.Controllers
 {
     public class HomeController : Controller
     {
@@ -16,7 +14,7 @@ namespace Coderhub.Controllers
         const string clientId = "0c8176b3d2ae7ab18ea0";
         private const string clientSecret = "79655a67f1b71dec5d4edeaff3c3e1a702949e0c";
         readonly GitHubClient client =
-            new GitHubClient(new ProductHeaderValue("Haack-GitHub-Oauth-Demo"), new Uri("https://github.com/"));
+            new GitHubClient(new ProductHeaderValue("Haack-GitHub-Oauth-Demo"));
 
         // This URL uses the GitHub API to get a list of the current user's
         // repositories which include public and private repositories.
@@ -34,8 +32,10 @@ namespace Coderhub.Controllers
             {
                 // The following requests retrieves all of the user's repositories and
                 // requires that the user be logged in to work.
-                IReadOnlyList<Octokit.Repository> repositories = await client.Repository.GetAllForCurrent();
-                return View(repositories);
+                var repositories = await client.Repository.GetAllForCurrent();
+                var model = new IndexViewModel(repositories);
+
+                return View(model);
             }
             catch (AuthorizationException)
             {
@@ -56,10 +56,7 @@ namespace Coderhub.Controllers
                 Session["CSRF:State"] = null;
 
                 var token = await client.Oauth.CreateAccessToken(
-                    new OauthTokenRequest(clientId, clientSecret, code)
-                    {
-                        RedirectUri = new Uri("http://localhost:58292/home/authorize")
-                    });
+                    new OauthTokenRequest(clientId, clientSecret, code));
                 Session["OAuthToken"] = token.AccessToken;
             }
 
@@ -74,11 +71,18 @@ namespace Coderhub.Controllers
             // 1. Redirect users to request GitHub access
             var request = new OauthLoginRequest(clientId)
             {
-                Scopes = { "user", "notifications" },
+                Scopes = {"user", "notifications"},
                 State = csrf
             };
             var oauthLoginUrl = client.Oauth.GetGitHubLoginUrl(request);
             return oauthLoginUrl.ToString();
+        }
+
+        public async Task<ActionResult> Emojis()
+        {
+            var emojis = await client.Miscellaneous.GetEmojis();
+
+            return View(emojis);
         }
     }
 }
